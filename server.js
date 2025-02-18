@@ -55,7 +55,7 @@ app.post('/api/create-setup-intent', async (req, res) => {
     
     const setupIntent = await stripe.setupIntents.create({
       customer: customer.id,
-      payment_method_types: ['card'],
+      payment_method_types: ['card', 'sepa_debit', 'ideal', 'bancontact', 'sofort'],
       usage: 'off_session'
     });
 
