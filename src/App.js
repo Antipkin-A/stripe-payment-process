@@ -1,44 +1,43 @@
 import React, { useState, useEffect } from 'react';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements } from '@stripe/react-stripe-js';
-import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, useLocation, Navigate } from 'react-router-dom';
 import SetupForm from './components/SetupForm';
 import PaymentForm from './components/PaymentForm';
 import CompletionPage from './components/CompletionPage';
 
-function App() {
-  const [stripePromise, setStripePromise] = useState(null);
+// Компонент для настройки новой карты
+function SetupPage() {
   const [setupIntent, setSetupIntent] = useState(null);
-  const [paymentMethod, setPaymentMethod] = useState(null);
   const [error, setError] = useState('');
+  const [stripePromise, setStripePromise] = useState(null);
 
   useEffect(() => {
-    // Fetch publishable key
     fetch("/config")
       .then((r) => r.json())
       .then(({ publishableKey }) => {
         setStripePromise(loadStripe(publishableKey));
-      })
-      .catch(err => setError('Failed to load Stripe configuration'));
+      });
   }, []);
 
   useEffect(() => {
-    if (!paymentMethod) {
-      // Create SetupIntent when no payment method is saved
-      fetch("/api/create-setup-intent", {
-        method: "POST",
+    fetch("/api/create-setup-intent", {
+      method: "POST",
+    })
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.error) {
+          setError(data.error);
+        } else {
+          setSetupIntent(data.clientSecret);
+        }
       })
-        .then((r) => r.json())
-        .then((data) => {
-          if (data.error) {
-            setError(data.error);
-          } else {
-            setSetupIntent(data.clientSecret);
-          }
-        })
-        .catch(err => setError('Failed to create setup intent'));
-    }
-  }, [paymentMethod]);
+      .catch(err => setError('Failed to create setup intent'));
+  }, []);
+
+  if (!setupIntent || !stripePromise) {
+    return <div>Loading...</div>;
+  }
 
   const appearance = {
     theme: 'stripe',
@@ -70,58 +69,90 @@ function App() {
     },
   };
 
-  const MainPage = () => {
-    if (!stripePromise || (!setupIntent && !paymentMethod)) {
-      return <div>Loading...</div>;
-    }
+  return (
+    <div className="container">
+      <Elements 
+        stripe={stripePromise} 
+        options={{ 
+          clientSecret: setupIntent,
+          appearance,
+          layout: {
+            type: 'tabs',
+            defaultCollapsed: false,
+          }
+        }}
+      >
+        <SetupForm onError={setError} />
+      </Elements>
+      {error && <div className="error-message">{error}</div>}
+    </div>
+  );
+}
 
-    return (
-      <div className="container">
-        {!paymentMethod ? (
-          setupIntent && stripePromise && (
-            <Elements 
-              stripe={stripePromise} 
-              options={{ 
-                clientSecret: setupIntent,
-                appearance,
-                layout: {
-                  type: 'tabs',
-                  defaultCollapsed: false,
-                }
-              }}
-            >
-              <SetupForm onSetupComplete={setPaymentMethod} onError={setError} />
-            </Elements>
-          )
-        ) : (
-          <PaymentForm 
-            paymentMethod={paymentMethod}
-            onError={setError}
-            onReset={() => setPaymentMethod(null)}
-          />
-        )}
-        
-        {error && <div className="error-message">{error}</div>}
-      </div>
-    );
-  };
+// Компонент для проведения платежа
+function PaymentPage() {
+  const [error, setError] = useState('');
+  const location = useLocation();
+  const params = new URLSearchParams(location.search);
+  const paymentMethod = params.get('payment_method');
+  const [stripePromise, setStripePromise] = useState(null);
 
+  useEffect(() => {
+    fetch("/config")
+      .then((r) => r.json())
+      .then(({ publishableKey }) => {
+        setStripePromise(loadStripe(publishableKey));
+      });
+  }, []);
+
+  if (!paymentMethod || !stripePromise) {
+    return <Navigate to="/" replace />;
+  }
+
+  return (
+    <div className="container">
+      <Elements stripe={stripePromise}>
+        <PaymentForm 
+          paymentMethod={paymentMethod}
+          onError={setError}
+        />
+      </Elements>
+      {error && <div className="error-message">{error}</div>}
+    </div>
+  );
+}
+
+// Компонент для страницы завершения
+function CompletionRoute() {
+  const [stripePromise, setStripePromise] = useState(null);
+
+  useEffect(() => {
+    fetch("/config")
+      .then((r) => r.json())
+      .then(({ publishableKey }) => {
+        setStripePromise(loadStripe(publishableKey));
+      });
+  }, []);
+
+  if (!stripePromise) {
+    return <div>Loading...</div>;
+  }
+
+  return (
+    <Elements stripe={stripePromise}>
+      <CompletionPage />
+    </Elements>
+  );
+}
+
+// Основной компонент приложения
+function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<MainPage />} />
-        <Route 
-          path="/completion" 
-          element={
-            stripePromise ? (
-              <Elements stripe={stripePromise}>
-                <CompletionPage />
-              </Elements>
-            ) : (
-              <div>Loading...</div>
-            )
-          }
-        />
+        <Route path="/" element={<SetupPage />} />
+        <Route path="/payment" element={<PaymentPage />} />
+        <Route path="/completion" element={<CompletionRoute />} />
       </Routes>
     </BrowserRouter>
   );
