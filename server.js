@@ -29,41 +29,100 @@ app.get('/config', async (req, res) => {
   });
 });
 
+// Create or retrieve customer
+async function getOrCreateCustomer() {
+  // В реальном приложении здесь будет логика получения customer_id из базы данных
+  // или создания нового customer для текущего пользователя
+  const customers = await stripe.customers.list({
+    limit: 1,
+  });
+
+  if (customers.data.length > 0) {
+    return customers.data[0];
+  }
+
+  const customer = await stripe.customers.create({
+    description: 'Test Customer',
+  });
+
+  return customer;
+}
+
 // Create SetupIntent
 app.post('/api/create-setup-intent', async (req, res) => {
   try {
+    const customer = await getOrCreateCustomer();
+    
     const setupIntent = await stripe.setupIntents.create({
-      payment_method_types: ['card', 'sepa_debit', 'ideal', 'bancontact', 'sofort'],
+      customer: customer.id,
+      payment_method_types: ['card'],
       usage: 'off_session'
     });
 
     res.json({
-      clientSecret: setupIntent.client_secret
+      clientSecret: setupIntent.client_secret,
+      customerId: customer.id
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// Create PaymentIntent using saved payment method
+// Create PaymentIntent
 app.post('/api/create-payment-intent', async (req, res) => {
   try {
     const { amount, paymentMethod } = req.body;
     
+    // Получаем или создаем customer
+    const customer = await getOrCreateCustomer();
+
+    // Привязываем payment method к customer, если еще не привязан
+    try {
+      await stripe.paymentMethods.attach(paymentMethod, {
+        customer: customer.id,
+      });
+    } catch (err) {
+      // Игнорируем ошибку, если payment method уже привязан
+      if (err.code !== 'resource_already_exists') {
+        throw err;
+      }
+    }
+
+    // Устанавливаем payment method как default для customer
+    await stripe.customers.update(customer.id, {
+      invoice_settings: {
+        default_payment_method: paymentMethod,
+      },
+    });
+    
     const paymentIntent = await stripe.paymentIntents.create({
       amount,
       currency: 'eur',
+      customer: customer.id,
       payment_method: paymentMethod,
-      payment_method_types: ['card', 'sepa_debit', 'ideal', 'bancontact', 'sofort'],
-      confirmation_method: 'manual',
-      confirm: true,
       off_session: true,
+      confirm: true,
     });
 
     res.json({
       clientSecret: paymentIntent.client_secret,
       status: paymentIntent.status
     });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Get customer payment methods
+app.get('/api/payment-methods', async (req, res) => {
+  try {
+    const customer = await getOrCreateCustomer();
+    const paymentMethods = await stripe.paymentMethods.list({
+      customer: customer.id,
+      type: 'card',
+    });
+
+    res.json(paymentMethods.data);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
