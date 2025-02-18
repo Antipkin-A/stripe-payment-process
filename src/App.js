@@ -7,18 +7,9 @@ import PaymentForm from './components/PaymentForm';
 import CompletionPage from './components/CompletionPage';
 
 // Компонент для настройки новой карты
-function SetupPage() {
+function SetupPage({ stripePromise }) {
   const [setupIntent, setSetupIntent] = useState(null);
   const [error, setError] = useState('');
-  const [stripePromise, setStripePromise] = useState(null);
-
-  useEffect(() => {
-    fetch("/config")
-      .then((r) => r.json())
-      .then(({ publishableKey }) => {
-        setStripePromise(loadStripe(publishableKey));
-      });
-  }, []);
 
   useEffect(() => {
     fetch("/api/create-setup-intent", {
@@ -35,7 +26,7 @@ function SetupPage() {
       .catch(err => setError('Failed to create setup intent'));
   }, []);
 
-  if (!setupIntent || !stripePromise) {
+  if (!setupIntent) {
     return <div>Loading...</div>;
   }
 
@@ -90,22 +81,13 @@ function SetupPage() {
 }
 
 // Компонент для проведения платежа
-function PaymentPage() {
+function PaymentPage({ stripePromise }) {
   const [error, setError] = useState('');
   const location = useLocation();
   const params = new URLSearchParams(location.search);
   const paymentMethod = params.get('payment_method');
-  const [stripePromise, setStripePromise] = useState(null);
 
-  useEffect(() => {
-    fetch("/config")
-      .then((r) => r.json())
-      .then(({ publishableKey }) => {
-        setStripePromise(loadStripe(publishableKey));
-      });
-  }, []);
-
-  if (!paymentMethod || !stripePromise) {
+  if (!paymentMethod) {
     return <Navigate to="/" replace />;
   }
 
@@ -123,7 +105,16 @@ function PaymentPage() {
 }
 
 // Компонент для страницы завершения
-function CompletionRoute() {
+function CompletionRoute({ stripePromise }) {
+  return (
+    <Elements stripe={stripePromise}>
+      <CompletionPage />
+    </Elements>
+  );
+}
+
+// Основной компонент приложения
+function App() {
   const [stripePromise, setStripePromise] = useState(null);
 
   useEffect(() => {
@@ -135,24 +126,15 @@ function CompletionRoute() {
   }, []);
 
   if (!stripePromise) {
-    return <div>Loading...</div>;
+    return <div>Loading Stripe configuration...</div>;
   }
 
   return (
-    <Elements stripe={stripePromise}>
-      <CompletionPage />
-    </Elements>
-  );
-}
-
-// Основной компонент приложения
-function App() {
-  return (
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<SetupPage />} />
-        <Route path="/payment" element={<PaymentPage />} />
-        <Route path="/completion" element={<CompletionRoute />} />
+        <Route path="/" element={<SetupPage stripePromise={stripePromise} />} />
+        <Route path="/payment" element={<PaymentPage stripePromise={stripePromise} />} />
+        <Route path="/completion" element={<CompletionRoute stripePromise={stripePromise} />} />
       </Routes>
     </BrowserRouter>
   );

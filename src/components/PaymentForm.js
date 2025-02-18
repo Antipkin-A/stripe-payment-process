@@ -1,22 +1,24 @@
 import React, { useState } from 'react';
 import { useStripe } from '@stripe/react-stripe-js';
+import { useNavigate } from 'react-router-dom';
 
-function PaymentForm({ paymentMethod, onError, onReset }) {
+function PaymentForm({ paymentMethod, onError }) {
   const stripe = useStripe();
-  const [amount, setAmount] = useState(1000);
+  const navigate = useNavigate();
+  const [amount, setAmount] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
-    if (!stripe) {
+    
+    if (!stripe || !paymentMethod || !amount) {
       return;
     }
 
     setIsProcessing(true);
 
     try {
-      const response = await fetch('/create-payment-intent', {
+      const response = await fetch('/api/create-payment-intent', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -31,21 +33,14 @@ function PaymentForm({ paymentMethod, onError, onReset }) {
 
       if (data.error) {
         onError(data.error);
-      } else {
-        const { error, paymentIntent } = await stripe.confirmPayment({
-          clientSecret: data.clientSecret,
-          confirmParams: {
-            return_url: `${window.location.origin}/completion`
-          }
-        });
-
-        if (error) {
-          onError(error.message);
-        }
+        setIsProcessing(false);
+        return;
       }
+
+      // Перенаправляем на страницу completion с payment_intent_client_secret
+      navigate(`/completion?payment_intent_client_secret=${data.clientSecret}`);
     } catch (err) {
       onError(err.message);
-    } finally {
       setIsProcessing(false);
     }
   };
@@ -53,33 +48,21 @@ function PaymentForm({ paymentMethod, onError, onReset }) {
   return (
     <div>
       <h2>Make a Payment</h2>
-      
-      <form onSubmit={handleSubmit}>
+      <form onSubmit={handleSubmit} className="payment-form">
         <div className="form-row">
-          <label htmlFor="amount">Amount (in cents)</label>
-          <input
-            id="amount"
-            type="number"
-            value={amount}
-            onChange={(e) => setAmount(e.target.value)}
-            placeholder="Amount in cents"
-            min="50"
-            required
-            disabled={isProcessing}
-          />
+          <label>
+            Amount (in cents):
+            <input
+              type="number"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              disabled={isProcessing}
+              required
+            />
+          </label>
         </div>
-
-        <button type="submit" disabled={!stripe || isProcessing}>
-          {isProcessing ? 'Processing...' : 'Pay Now'}
-        </button>
-
-        <button 
-          type="button" 
-          onClick={onReset}
-          className="secondary"
-          disabled={isProcessing}
-        >
-          Use Different Card
+        <button type="submit" disabled={isProcessing || !stripe}>
+          {isProcessing ? 'Processing...' : 'Pay'}
         </button>
       </form>
     </div>
