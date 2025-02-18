@@ -1,0 +1,122 @@
+.payment-container {
+  max-width: 500px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+.card-display {
+  background: linear-gradient(135deg, #434343 0%, #000000 100%);
+  border-radius: 15px;
+  padding: 25px;
+  margin-bottom: 30px;
+  color: white;
+  font-family: 'Courier New', monospace;
+  position: relative;
+  min-height: 200px;
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.19), 0 6px 6px rgba(0, 0, 0, 0.23);
+}
+
+.card-chip {
+  width: 50px;
+  height: 40px;
+  background: linear-gradient(135deg, #FFD700 0%, #B8860B 100%);
+  border-radius: 8px;
+  margin-bottom: 30px;
+  position: relative;
+}
+
+.card-chip::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 30px;
+  height: 20px;
+  background: linear-gradient(to right, transparent 33%, #B8860B 33%, #B8860B 66%, transparent 66%);
+}
+
+.card-details {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.card-number {
+  font-size: 24px;
+  letter-spacing: 4px;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+.card-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 16px;
+}
+
+.card-name {
+  text-transform: uppercase;
+  letter-spacing: 2px;
+}
+
+.card-expiry {
+  font-family: 'Arial', sans-serif;
+}
+
+.payment-form {
+  background: white;
+  padding: 20px;
+  border-radius: 10px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.form-row {
+  margin-bottom: 20px;
+}
+
+.form-row label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: bold;
+}
+
+.form-row input {
+  width: 100%;
+  padding: 10px;
+  border: 2px solid #ddd;
+  border-radius: 5px;
+  font-size: 16px;
+}
+
+.form-row input:focus {
+  border-color: #000;
+  outline: none;
+}
+
+.submit-button {
+  width: 100%;
+  padding: 12px;
+  background: #000;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  font-size: 16px;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+.submit-button:hover {
+  background: #333;
+}
+
+.submit-button:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+}
+
+.error-message {
+  color: #dc3545;
+  margin-top: 10px;
+  font-size: 14px;
+}

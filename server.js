@@ -128,6 +128,17 @@ app.get('/api/payment-methods', async (req, res) => {
   }
 });
 
+// Get specific payment method
+app.get('/api/payment-methods/:paymentMethodId', async (req, res) => {
+  try {
+    const { paymentMethodId } = req.params;
+    const paymentMethod = await stripe.paymentMethods.retrieve(paymentMethodId);
+    res.json(paymentMethod);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 if (!isDevelopment) {
   // В production режиме сервим статические файлы
   app.use(express.static(path.join(__dirname, 'dist')));
