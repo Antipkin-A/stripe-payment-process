@@ -1,14 +1,26 @@
 require('dotenv').config();
 const express = require('express');
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
-const bodyParser = require('body-parser');
 const path = require('path');
+const yargs = require('yargs/yargs');
+const { hideBin } = require('yargs/helpers');
+
+// Парсинг аргументов командной строки с помощью yargs
+const argv = yargs(hideBin(process.argv))
+  .option('mode', {
+    alias: 'm',
+    type: 'string',
+    description: 'Run mode (development or production)',
+    choices: ['development', 'production'],
+    default: 'production'
+  })
+  .argv;
+
+const isDevelopment = argv.mode === 'development';
+console.log('Running in', isDevelopment ? 'development' : 'production', 'mode');
 
 const app = express();
-
-// Serve static files from the React app
-app.use(express.static(path.join(__dirname, 'public')));
-app.use(bodyParser.json());
+app.use(express.json());
 
 // Get Stripe publishable key
 app.get('/config', async (req, res) => {
@@ -18,7 +30,7 @@ app.get('/config', async (req, res) => {
 });
 
 // Create SetupIntent
-app.post('/create-setup-intent', async (req, res) => {
+app.post('/api/create-setup-intent', async (req, res) => {
   try {
     const setupIntent = await stripe.setupIntents.create({
       payment_method_types: ['card', 'sepa_debit', 'ideal', 'bancontact', 'sofort'],
@@ -34,7 +46,7 @@ app.post('/create-setup-intent', async (req, res) => {
 });
 
 // Create PaymentIntent using saved payment method
-app.post('/create-payment-intent', async (req, res) => {
+app.post('/api/create-payment-intent', async (req, res) => {
   try {
     const { amount, paymentMethod } = req.body;
     
@@ -46,7 +58,6 @@ app.post('/create-payment-intent', async (req, res) => {
       confirmation_method: 'manual',
       confirm: true,
       off_session: true,
-      return_url: `${req.headers.origin}/completion`
     });
 
     res.json({
@@ -58,24 +69,15 @@ app.post('/create-payment-intent', async (req, res) => {
   }
 });
 
-// Get customer's saved payment methods
-app.get('/payment-methods', async (req, res) => {
-  try {
-    const { customerId } = req.query;
-    const paymentMethods = await stripe.paymentMethods.list({
-      customer: customerId,
-      type: 'card',
-    });
-    res.json(paymentMethods.data);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// Handle React routing, return all requests to React app
-app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
-});
+if (!isDevelopment) {
+  // В production режиме сервим статические файлы
+  app.use(express.static(path.join(__dirname, 'dist')));
+  
+  // Все остальные GET запросы отправляем на index.html
+  app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, 'dist', 'index.html'));
+  });
+}
 
 const port = process.env.PORT || 4000;
 app.listen(port, () => console.log(`Server running on port ${port}`));

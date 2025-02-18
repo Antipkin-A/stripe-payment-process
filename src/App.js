@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements } from '@stripe/react-stripe-js';
+import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
 import SetupForm from './components/SetupForm';
 import PaymentForm from './components/PaymentForm';
+import CompletionPage from './components/CompletionPage';
 
 function App() {
   const [stripePromise, setStripePromise] = useState(null);
@@ -23,7 +25,7 @@ function App() {
   useEffect(() => {
     if (!paymentMethod) {
       // Create SetupIntent when no payment method is saved
-      fetch("/create-setup-intent", {
+      fetch("/api/create-setup-intent", {
         method: "POST",
       })
         .then((r) => r.json())
@@ -68,42 +70,60 @@ function App() {
     },
   };
 
-  if (!stripePromise) {
-    return <div>Loading...</div>;
-  }
+  const MainPage = () => {
+    if (!stripePromise || (!setupIntent && !paymentMethod)) {
+      return <div>Loading...</div>;
+    }
 
-  if (!setupIntent && !paymentMethod) {
-    return <div>Loading...</div>;
-  }
+    return (
+      <div className="container">
+        {!paymentMethod ? (
+          setupIntent && stripePromise && (
+            <Elements 
+              stripe={stripePromise} 
+              options={{ 
+                clientSecret: setupIntent,
+                appearance,
+                layout: {
+                  type: 'tabs',
+                  defaultCollapsed: false,
+                }
+              }}
+            >
+              <SetupForm onSetupComplete={setPaymentMethod} onError={setError} />
+            </Elements>
+          )
+        ) : (
+          <PaymentForm 
+            paymentMethod={paymentMethod}
+            onError={setError}
+            onReset={() => setPaymentMethod(null)}
+          />
+        )}
+        
+        {error && <div className="error-message">{error}</div>}
+      </div>
+    );
+  };
 
   return (
-    <div className="container">
-      {!paymentMethod ? (
-        setupIntent && stripePromise && (
-          <Elements 
-            stripe={stripePromise} 
-            options={{ 
-              clientSecret: setupIntent,
-              appearance,
-              layout: {
-                type: 'tabs',
-                defaultCollapsed: false,
-              }
-            }}
-          >
-            <SetupForm onSetupComplete={setPaymentMethod} onError={setError} />
-          </Elements>
-        )
-      ) : (
-        <PaymentForm 
-          paymentMethod={paymentMethod}
-          onError={setError}
-          onReset={() => setPaymentMethod(null)}
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<MainPage />} />
+        <Route 
+          path="/completion" 
+          element={
+            stripePromise ? (
+              <Elements stripe={stripePromise}>
+                <CompletionPage />
+              </Elements>
+            ) : (
+              <div>Loading...</div>
+            )
+          }
         />
-      )}
-      
-      {error && <div className="error-message">{error}</div>}
-    </div>
+      </Routes>
+    </BrowserRouter>
   );
 }
 

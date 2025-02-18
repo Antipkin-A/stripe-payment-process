@@ -1,10 +1,14 @@
 import React, { useState } from 'react';
-import { PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
+import {
+  PaymentElement,
+  useStripe,
+  useElements
+} from '@stripe/react-stripe-js';
 
-const SetupForm = ({ onSetupComplete, onError }) => {
+function SetupForm({ onSetupComplete, onError }) {
   const stripe = useStripe();
   const elements = useElements();
-  const [processing, setProcessing] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -13,52 +17,53 @@ const SetupForm = ({ onSetupComplete, onError }) => {
       return;
     }
 
-    setProcessing(true);
+    setIsProcessing(true);
 
     try {
       const { setupIntent, error } = await stripe.confirmSetup({
         elements,
         confirmParams: {
-          return_url: `${window.location.origin}/completion`,
-          payment_method_data: {
-            billing_details: {
-              address: {
-                country: 'DE',
-              },
-            },
-          },
+          return_url: `${window.location.origin}/completion`
         },
       });
 
       if (error) {
         onError(error.message);
-      } else {
-        const paymentMethod = setupIntent.payment_method;
-        onSetupComplete(paymentMethod);
+      } else if (setupIntent.status === "succeeded") {
+        onSetupComplete(setupIntent.payment_method);
+        onError('');
       }
     } catch (err) {
-      onError('An unexpected error occurred.');
+      onError(err.message);
     } finally {
-      setProcessing(false);
+      setIsProcessing(false);
     }
   };
 
   return (
     <form onSubmit={handleSubmit}>
-      <div className="payment-element-container">
-        <h3>Add Payment Method</h3>
-        <p>We accept cards, SEPA Direct Debit, iDEAL, Bancontact, and SOFORT.</p>
-        <PaymentElement />
+      <h2>Setup Payment Method</h2>
+      <p>Enter your card details to save for future payments</p>
+      
+      <div className="payment-element">
+        <PaymentElement
+          options={{
+            layout: {
+              type: 'tabs',
+              defaultCollapsed: false,
+            },
+            fields: {
+              billingDetails: 'auto'
+            }
+          }}
+        />
       </div>
-      <button
-        type="submit"
-        disabled={!stripe || processing}
-        className="submit-button"
-      >
-        {processing ? 'Setting up...' : 'Save Payment Method'}
+
+      <button type="submit" disabled={!stripe || isProcessing}>
+        {isProcessing ? 'Setting up...' : 'Save Card'}
       </button>
     </form>
   );
-};
+}
 
 export default SetupForm;

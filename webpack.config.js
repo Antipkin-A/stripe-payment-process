@@ -4,9 +4,9 @@ const HtmlWebpackPlugin = require('html-webpack-plugin');
 module.exports = {
   entry: './src/index.js',
   output: {
-    path: path.resolve(__dirname, 'public'),
+    path: path.resolve(__dirname, 'dist'),
     filename: 'bundle.js',
-    clean: true
+    publicPath: '/'
   },
   module: {
     rules: [
@@ -29,26 +29,23 @@ module.exports = {
   plugins: [
     new HtmlWebpackPlugin({
       template: './src/index.html',
+      filename: 'index.html'
     }),
   ],
   devServer: {
     static: {
-      directory: path.join(__dirname, 'public'),
+      directory: path.join(__dirname, 'dist'),
+      publicPath: "/"
     },
     proxy: {
-      '/': {
-        target: 'http://localhost:4000',
-        secure: false,
-        changeOrigin: true,
-      }
+      '/api/*': 'http://localhost:4000',
+      '/config': 'http://localhost:4000',
     },
-    port: 3000,
     historyApiFallback: true,
-    hot: true,
+    port: 3000,
+    open: true
   },
   resolve: {
     extensions: ['.js', '.jsx'],
   },
-  cache: false,
-  devtool: 'source-map',
 };

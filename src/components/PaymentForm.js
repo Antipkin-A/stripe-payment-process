@@ -32,16 +32,15 @@ function PaymentForm({ paymentMethod, onError, onReset }) {
       if (data.error) {
         onError(data.error);
       } else {
-        switch (data.status) {
-          case 'succeeded':
-            onError('Payment successful!');
-            break;
-          case 'requires_payment_method':
-            onError('Your payment was not successful, please try again.');
-            break;
-          default:
-            onError('Something went wrong.');
-            break;
+        const { error, paymentIntent } = await stripe.confirmPayment({
+          clientSecret: data.clientSecret,
+          confirmParams: {
+            return_url: `${window.location.origin}/completion`
+          }
+        });
+
+        if (error) {
+          onError(error.message);
         }
       }
     } catch (err) {
@@ -54,7 +53,6 @@ function PaymentForm({ paymentMethod, onError, onReset }) {
   return (
     <div>
       <h2>Make a Payment</h2>
-      <p>Use your saved card to make a payment</p>
       
       <form onSubmit={handleSubmit}>
         <div className="form-row">

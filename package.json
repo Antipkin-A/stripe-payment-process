@@ -6,10 +6,12 @@
   "scripts": {
     "clean": "rimraf ./public/bundle.js",
     "start": "concurrently \"npm run server\" \"npm run client\"",
-    "server": "node server.js",
+    "server": "node server.js --mode development",
     "client": "webpack serve --mode development",
     "client:build": "webpack --mode production",
-    "dev": "concurrently \"npm run server\" \"npm run client\""
+    "server:prod": "node server.js --mode production",
+    "dev": "concurrently \"npm run server\" \"npm run client\"",
+    "build": "webpack --mode production"
   },
   "dependencies": {
     "@stripe/react-stripe-js": "^3.1.1",
@@ -20,6 +22,7 @@
     "express": "^4.18.2",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
+    "react-router-dom": "^7.1.5",
     "rimraf": "^4.4.1",
     "stripe": "^14.10.0"
   },
@@ -33,6 +36,7 @@
     "style-loader": "^3.3.3",
     "webpack": "^5.88.2",
     "webpack-cli": "^5.1.4",
-    "webpack-dev-server": "^4.15.1"
+    "webpack-dev-server": "^4.15.1",
+    "yargs": "^17.7.2"
   }
 }
