@@ -180,21 +180,46 @@ app.post('/api/create-payment-intent', async (req, res) => {
     // Use the first payment method
     const paymentMethod = paymentMethods.data[0].id;
 
-    // Create the payment intent
-    const paymentIntent = await stripe.paymentIntents.create({
-      amount,
-      currency,
+    // Create the invoice first
+    const invoice = await stripe.invoices.create({
       customer: customer.stripeCustomerId,
-      payment_method: paymentMethod,
-      off_session: true,
-      confirm: true,
+      auto_advance: false,
+      collection_method: 'charge_automatically',
+      currency,
+      description: `Payment for ${customerName}`,
+      payment_settings: {
+        payment_method_types: ['card'],
+        payment_method_options: {
+          card: {
+            request_three_d_secure: 'automatic'
+          }
+        }
+      },
     });
 
-    res.json({
-      paymentIntent,
-      requiresAction: paymentIntent.status === 'requires_action',
-      clientSecret: paymentIntent.client_secret
+    // Create an invoice item and attach it to the invoice
+    await stripe.invoiceItems.create({
+      customer: customer.stripeCustomerId,
+      amount,
+      currency,
+      description: `Payment for ${customerName}`,
+      invoice: invoice.id  // Attach item to the invoice
     });
+
+    // Finalize the invoice to include the items
+    const finalizedInvoice = await stripe.invoices.finalizeInvoice(invoice.id);
+    const paidInvoice = await stripe.invoices.pay(finalizedInvoice.id, {
+      payment_method: paymentMethod
+    });
+
+    // The invoice will be automatically marked as paid when the payment succeeds
+    const finallyInvoice = await stripe.invoices.retrieve(paidInvoice.id);
+
+    res.json({
+      requiresAction: false,
+      invoice: finallyInvoice
+    });
+
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -321,6 +346,25 @@ app.post('/api/create-portal-session', async (req, res) => {
     res.json({ url: session.url });
   } catch (err) {
     res.status(500).json({ error: err.message });
+  }
+});
+
+// Process refund
+app.post('/api/refund', async (req, res) => {
+  try {
+    const { paymentMethod, amount, currency } = req.body;
+
+    // Create a refund
+    const refund = await stripe.refunds.create({
+      payment_intent: paymentMethod,
+      amount: amount,
+      currency: currency,
+    });
+
+    res.json(refund);
+  } catch (error) {
+    console.error('Error processing refund:', error);
+    res.status(500).json({ error: error.message });
   }
 });
 

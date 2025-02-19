@@ -116,52 +116,57 @@ function PaymentForm({ onError }) {
     }
   };
 
-  const handleSubmit = async (event) => {
-    event.preventDefault();
-    if (!stripe || !amount) return;
-
+  const handleSubmit = async (e) => {
+    e.preventDefault();
     setIsProcessing(true);
 
     try {
-      // Конвертируем сумму в центы/пенни для Stripe
-      const amountInSmallestUnit = Math.round(parseFloat(amount) * 100);
-
       const response = await fetch('/api/create-payment-intent', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          amount: amountInSmallestUnit,
-          currency: currency,
-          customerName: customerName,
+          customerName: searchParams.get('customerName'),
+          amount: Math.round(parseFloat(amount) * 100),
+          currency,
         }),
       });
 
       const data = await response.json();
 
       if (data.error) {
-        if (data.redirect === '/') {
-          navigate(`/?customerName=${encodeURIComponent(customerName)}`);
-        } else {
-          onError(data.error);
+        if (data.redirect) {
+          navigate(data.redirect);
+          return;
         }
-        setIsProcessing(false);
-        return;
+        throw new Error(data.error);
       }
 
       if (data.requiresAction) {
         const { error } = await stripe.handleCardAction(data.clientSecret);
         if (error) {
-          onError(error.message);
-          setIsProcessing(false);
-          return;
+          throw error;
         }
       }
 
-      navigate(`/completion?payment_intent_client_secret=${data.clientSecret}`);
-    } catch (err) {
-      onError(err.message);
+      // Store invoice ID in session storage for the completion page
+      if (data.invoice) {
+        sessionStorage.setItem('lastInvoiceId', data.invoice.id);
+      }
+
+      // Navigate to completion page with payment and invoice info
+      navigate('/completion', {
+        state: {
+          paymentIntent: data.paymentIntent,
+          invoice: data.invoice
+        }
+      });
+
+    } catch (error) {
+      console.error('Payment error:', error);
+      onError?.(error.message);
+    } finally {
       setIsProcessing(false);
     }
   };
