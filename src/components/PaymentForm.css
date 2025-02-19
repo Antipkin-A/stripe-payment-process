@@ -1,27 +1,30 @@
 .payment-container {
-  max-width: 500px;
+  max-width: 600px;
   margin: 0 auto;
   padding: 20px;
 }
 
 .card-display {
   background: linear-gradient(135deg, #434343 0%, #000000 100%);
-  border-radius: 15px;
-  padding: 25px;
+  border-radius: 10px;
+  padding: 20px;
   margin-bottom: 30px;
   color: white;
   font-family: 'Courier New', monospace;
   position: relative;
-  min-height: 200px;
+  min-height: 150px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
   box-shadow: 0 10px 20px rgba(0, 0, 0, 0.19), 0 6px 6px rgba(0, 0, 0, 0.23);
 }
 
 .card-chip {
-  width: 50px;
-  height: 40px;
-  background: linear-gradient(135deg, #FFD700 0%, #B8860B 100%);
-  border-radius: 8px;
-  margin-bottom: 30px;
+  width: 40px;
+  height: 30px;
+  background: linear-gradient(135deg, #FFD700 0%, #DAA520 100%);
+  border-radius: 5px;
+  margin-bottom: 20px;
   position: relative;
 }
 
@@ -31,20 +34,20 @@
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  width: 30px;
-  height: 20px;
-  background: linear-gradient(to right, transparent 33%, #B8860B 33%, #B8860B 66%, transparent 66%);
+  width: 20px;
+  height: 10px;
+  background: linear-gradient(to right, transparent 33%, #DAA520 33%, #DAA520 66%, transparent 66%);
 }
 
 .card-details {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 10px;
 }
 
 .card-number {
-  font-size: 24px;
-  letter-spacing: 4px;
+  font-size: 18px;
+  letter-spacing: 2px;
   text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
 }
 
@@ -52,7 +55,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-size: 16px;
+  font-size: 14px;
 }
 
 .card-name {
@@ -65,27 +68,57 @@
 }
 
 .payment-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
   background: white;
   padding: 20px;
   border-radius: 10px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
+.customer-info {
+  background-color: #f8fafc;
+  padding: 12px;
+  border-radius: 4px;
+  margin-bottom: 20px;
+  color: #4f566b;
+  font-size: 16px;
+}
+
+.loading {
+  text-align: center;
+  padding: 20px;
+  color: #4f566b;
+  font-size: 16px;
+}
+
+.error-message {
+  color: #dc3545;
+  padding: 10px;
+  margin: 10px 0;
+  background-color: #fff5f5;
+  border: 1px solid #fad7d7;
+  border-radius: 4px;
+}
+
 .form-row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
   margin-bottom: 20px;
 }
 
 .form-row label {
   display: block;
-  margin-bottom: 8px;
-  font-weight: bold;
+  font-weight: 500;
 }
 
 .form-row input {
   width: 100%;
   padding: 10px;
-  border: 2px solid #ddd;
-  border-radius: 5px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
   font-size: 16px;
 }
 
@@ -94,29 +127,48 @@
   outline: none;
 }
 
-.submit-button {
-  width: 100%;
-  padding: 12px;
-  background: #000;
+.saved-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  margin: 20px 0;
+}
+
+.saved-card {
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+  border: 2px solid transparent;
+}
+
+.saved-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.saved-card.selected {
+  border-color: #5469d4;
+}
+
+button {
+  background-color: #5469d4;
   color: white;
+  padding: 12px 20px;
   border: none;
-  border-radius: 5px;
+  border-radius: 4px;
   font-size: 16px;
   cursor: pointer;
-  transition: background-color 0.3s;
+  transition: background-color 0.2s;
 }
 
-.submit-button:hover {
-  background: #333;
-}
-
-.submit-button:disabled {
-  background: #ccc;
+button:disabled {
+  background-color: #a5adc9;
   cursor: not-allowed;
 }
 
-.error-message {
-  color: #dc3545;
-  margin-top: 10px;
-  font-size: 14px;
+button:not(:disabled):hover {
+  background-color: #4054c7;
+}
+
+.submit-button {
+  width: 100%;
 }

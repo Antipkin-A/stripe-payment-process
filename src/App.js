@@ -10,10 +10,22 @@ import CompletionPage from './components/CompletionPage';
 function SetupPage({ stripePromise }) {
   const [setupIntent, setSetupIntent] = useState(null);
   const [error, setError] = useState('');
+  const location = useLocation();
+  const searchParams = new URLSearchParams(location.search);
+  const customerName = searchParams.get('customerName');
 
   useEffect(() => {
-    fetch("/api/create-setup-intent", {
+    if (!customerName) {
+      setError('Customer name is required');
+      return;
+    }
+
+    fetch("/api/setup-intent", {
       method: "POST",
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ customerName })
     })
       .then((r) => r.json())
       .then((data) => {
@@ -24,7 +36,11 @@ function SetupPage({ stripePromise }) {
         }
       })
       .catch(err => setError('Failed to create setup intent'));
-  }, []);
+  }, [customerName]);
+
+  if (!customerName) {
+    return <div>Error: Customer name is required</div>;
+  }
 
   if (!setupIntent) {
     return <div>Loading...</div>;
@@ -83,23 +99,17 @@ function SetupPage({ stripePromise }) {
 // Компонент для проведения платежа
 function PaymentPage({ stripePromise }) {
   const [error, setError] = useState('');
-  const location = useLocation();
-  const params = new URLSearchParams(location.search);
-  const paymentMethod = params.get('payment_method');
 
-  if (!paymentMethod) {
-    return <Navigate to="/" replace />;
-  }
+  const handleError = (message) => {
+    setError(message);
+  };
 
   return (
     <div className="container">
-      <Elements stripe={stripePromise}>
-        <PaymentForm 
-          paymentMethod={paymentMethod}
-          onError={setError}
-        />
-      </Elements>
       {error && <div className="error-message">{error}</div>}
+      <Elements stripe={stripePromise}>
+        <PaymentForm onError={handleError} />
+      </Elements>
     </div>
   );
 }

@@ -61,9 +61,14 @@ async function getOrCreateCustomer(customerName) {
 }
 
 // Create SetupIntent
-app.post('/api/create-setup-intent', async (req, res) => {
+app.post('/api/setup-intent', async (req, res) => {
   try {
-    const customer = await getOrCreateCustomer('Test Customer');
+    const { customerName } = req.body;
+    if (!customerName) {
+      return res.status(400).json({ error: 'Customer name is required' });
+    }
+
+    const customer = await getOrCreateCustomer(customerName);
     
     const setupIntent = await stripe.setupIntents.create({
       customer: customer.stripeCustomerId,
@@ -83,42 +88,44 @@ app.post('/api/create-setup-intent', async (req, res) => {
 // Create PaymentIntent
 app.post('/api/create-payment-intent', async (req, res) => {
   try {
-    const { amount, paymentMethod, customerName } = req.body;
-    
-    // Получаем или создаем customer
-    const customer = await getOrCreateCustomer(customerName);
-
-    // Привязываем payment method к customer, если еще не привязан
-    try {
-      await stripe.paymentMethods.attach(paymentMethod, {
-        customer: customer.stripeCustomerId,
-      });
-    } catch (err) {
-      // Игнорируем ошибку, если payment method уже привязан
-      if (err.code !== 'resource_already_exists') {
-        throw err;
-      }
+    const { amount, customerName } = req.body;
+    if (!customerName) {
+      return res.status(400).json({ error: 'Customer name is required' });
     }
 
-    // Устанавливаем payment method как default для customer
-    await stripe.customers.update(customer.stripeCustomerId, {
-      invoice_settings: {
-        default_payment_method: paymentMethod,
-      },
+    // Find existing customer
+    const internalCustomer = await InternalCustomer.findOne({
+      where: { customerName }
     });
-    
+
+    if (!internalCustomer) {
+      return res.status(404).json({ error: 'Customer not found' });
+    }
+
+    // Get customer's default payment method
+    const stripeCustomer = await stripe.customers.retrieve(internalCustomer.stripeCustomerId);
+    const defaultPaymentMethod = stripeCustomer.invoice_settings.default_payment_method;
+
+    if (!defaultPaymentMethod) {
+      return res.status(400).json({ 
+        error: 'No default payment method found',
+        redirect: '/setup'
+      });
+    }
+
     const paymentIntent = await stripe.paymentIntents.create({
       amount,
       currency: 'eur',
-      customer: customer.stripeCustomerId,
-      payment_method: paymentMethod,
+      customer: internalCustomer.stripeCustomerId,
+      payment_method: defaultPaymentMethod,
       off_session: true,
       confirm: true,
     });
 
     res.json({
-      clientSecret: paymentIntent.client_secret,
-      status: paymentIntent.status
+      paymentIntent,
+      requiresAction: paymentIntent.status === 'requires_action',
+      clientSecret: paymentIntent.client_secret
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -128,9 +135,21 @@ app.post('/api/create-payment-intent', async (req, res) => {
 // Get customer payment methods
 app.get('/api/payment-methods', async (req, res) => {
   try {
-    const customer = await getOrCreateCustomer('Test Customer');
+    const { customerName } = req.query;
+    if (!customerName) {
+      return res.status(400).json({ error: 'Customer name is required' });
+    }
+
+    const internalCustomer = await InternalCustomer.findOne({
+      where: { customerName }
+    });
+
+    if (!internalCustomer) {
+      return res.status(404).json({ error: 'Customer not found' });
+    }
+
     const paymentMethods = await stripe.paymentMethods.list({
-      customer: customer.stripeCustomerId,
+      customer: internalCustomer.stripeCustomerId,
       type: 'card',
     });
 
@@ -148,6 +167,53 @@ app.get('/api/payment-methods/:paymentMethodId', async (req, res) => {
     res.json(paymentMethod);
   } catch (err) {
     res.status(500).json({ error: err.message });
+  }
+});
+
+// Add new endpoint to handle customer payment flow
+app.get('/api/customer-payment-flow', async (req, res) => {
+  try {
+    const { customerName } = req.query;
+    if (!customerName) {
+      return res.status(400).json({ error: 'Customer name is required' });
+    }
+
+    // Find customer in database
+    const internalCustomer = await InternalCustomer.findOne({
+      where: { customerName }
+    });
+
+    if (!internalCustomer) {
+      return res.status(404).json({ 
+        error: 'Customer not found',
+        redirect: '/setup'
+      });
+    }
+
+    // Get customer's payment methods from Stripe
+    const paymentMethods = await stripe.paymentMethods.list({
+      customer: internalCustomer.stripeCustomerId,
+      type: 'card'
+    });
+
+    if (paymentMethods.data.length === 0) {
+      // No payment methods - redirect to setup
+      return res.json({
+        customerId: internalCustomer.stripeCustomerId,
+        redirect: '/setup'
+      });
+    }
+
+    // Has payment method - can proceed to payment
+    return res.json({
+      customerId: internalCustomer.stripeCustomerId,
+      redirect: '/payment',
+      paymentMethods: paymentMethods.data
+    });
+
+  } catch (error) {
+    console.error('Error in customer-payment-flow:', error);
+    res.status(500).json({ error: error.message });
   }
 });
 
