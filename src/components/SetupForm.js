@@ -25,7 +25,7 @@ function SetupForm({ onSetupComplete, onError }) {
       const { setupIntent, error } = await stripe.confirmSetup({
         elements,
         confirmParams: {
-          return_url: `${window.location.origin}/completion`,
+          return_url: `${window.location.origin}/completion?customerName=${encodeURIComponent(customerName)}`,
         },
       });
 

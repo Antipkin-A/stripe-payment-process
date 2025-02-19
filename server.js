@@ -102,17 +102,23 @@ app.post('/api/create-payment-intent', async (req, res) => {
       return res.status(404).json({ error: 'Customer not found' });
     }
 
-    // Get customer's default payment method
-    const stripeCustomer = await stripe.customers.retrieve(internalCustomer.stripeCustomerId);
-    const defaultPaymentMethod = stripeCustomer.invoice_settings.default_payment_method;
+    // Get customer's payment methods
+    const paymentMethods = await stripe.paymentMethods.list({
+      customer: internalCustomer.stripeCustomerId,
+      type: 'card'
+    });
 
-    if (!defaultPaymentMethod) {
+    if (paymentMethods.data.length === 0) {
       return res.status(400).json({ 
-        error: 'No default payment method found',
-        redirect: '/setup'
+        error: 'No payment methods found',
+        redirect: '/'
       });
     }
 
+    // Use the first payment method as default if no default is set
+    const defaultPaymentMethod = paymentMethods.data[0].id;
+
+    // Create the payment intent
     const paymentIntent = await stripe.paymentIntents.create({
       amount,
       currency: 'eur',
@@ -186,7 +192,7 @@ app.get('/api/customer-payment-flow', async (req, res) => {
     if (!internalCustomer) {
       return res.status(404).json({ 
         error: 'Customer not found',
-        redirect: '/setup'
+        redirect: '/'
       });
     }
 
@@ -200,7 +206,7 @@ app.get('/api/customer-payment-flow', async (req, res) => {
       // No payment methods - redirect to setup
       return res.json({
         customerId: internalCustomer.stripeCustomerId,
-        redirect: '/setup'
+        redirect: '/'
       });
     }
 

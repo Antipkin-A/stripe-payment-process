@@ -65,7 +65,6 @@ function PaymentForm({ onError }) {
         if (data.length > 0) {
           // Берем первый платежный метод как основной
           setCardDetails(data[0].card);
-          setStripeCustomerId(data[0].customer);
         } else {
           // Если нет платежных методов, редиректим на setup
           navigate(`/setup?customerName=${encodeURIComponent(customerName)}`);
