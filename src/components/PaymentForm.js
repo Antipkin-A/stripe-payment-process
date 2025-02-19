@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useStripe } from '@stripe/react-stripe-js';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import './PaymentForm.css';
 
 // Компонент для отображения карты
@@ -30,15 +30,15 @@ function CardDisplay({ cardDetails }) {
 function PaymentForm({ onError }) {
   const stripe = useStripe();
   const navigate = useNavigate();
-  const location = useLocation();
-  const searchParams = new URLSearchParams(location.search);
-  const customerName = searchParams.get('customerName');
-  
-  const [amount, setAmount] = useState('');
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [cardDetails, setCardDetails] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [stripeCustomerId, setStripeCustomerId] = useState(null);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [amount, setAmount] = useState('');
+  const [cardDetails, setCardDetails] = useState(null);
+  const [hasPaymentMethod, setHasPaymentMethod] = useState(true);
+
+  // Get customerName from URL parameters
+  const searchParams = new URLSearchParams(window.location.search);
+  const customerName = searchParams.get('customerName');
 
   useEffect(() => {
     const fetchCustomerAndPaymentMethod = async () => {
@@ -49,13 +49,12 @@ function PaymentForm({ onError }) {
 
       try {
         setIsLoading(true);
-        // Получаем информацию о клиенте и его платежном методе
         const response = await fetch(`/api/payment-methods?customerName=${encodeURIComponent(customerName)}`);
         const data = await response.json();
 
         if (data.error) {
           if (data.redirect === '/') {
-            navigate(`/?customerName=${encodeURIComponent(customerName)}`);
+            setHasPaymentMethod(false);
           } else {
             onError(data.error);
           }
@@ -63,11 +62,10 @@ function PaymentForm({ onError }) {
         }
 
         if (data.length > 0) {
-          // Берем первый платежный метод как основной
           setCardDetails(data[0].card);
+          setHasPaymentMethod(true);
         } else {
-          // Если нет платежных методов, редиректим на setup
-          navigate(`/setup?customerName=${encodeURIComponent(customerName)}`);
+          setHasPaymentMethod(false);
         }
       } catch (err) {
         onError(err.message);
@@ -77,7 +75,7 @@ function PaymentForm({ onError }) {
     };
 
     fetchCustomerAndPaymentMethod();
-  }, [customerName, navigate, onError]);
+  }, [customerName, onError]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -128,12 +126,31 @@ function PaymentForm({ onError }) {
     }
   };
 
-  if (!customerName) {
-    return <div className="error-message">Customer name is required</div>;
+  if (isLoading) {
+    return (
+      <div className="payment-container">
+        <div className="loading-message">Loading payment information...</div>
+      </div>
+    );
   }
 
-  if (isLoading) {
-    return <div className="loading">Loading payment information...</div>;
+  if (!hasPaymentMethod) {
+    return (
+      <div className="payment-container">
+        <div className="no-payment-method">
+          <h2>No Payment Method Found</h2>
+          <p>There is no payment method set up for customer: <strong>{customerName}</strong></p>
+          <p>Please set up a payment method to continue.</p>
+          <Link to={`/?customerName=${encodeURIComponent(customerName)}`} className="setup-link">
+            Set Up Payment Method
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  if (!customerName) {
+    return <div className="error-message">Customer name is required</div>;
   }
 
   return (

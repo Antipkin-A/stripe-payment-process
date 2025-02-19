@@ -93,6 +93,13 @@
   font-size: 16px;
 }
 
+.loading-message {
+  text-align: center;
+  padding: 20px;
+  color: #6b7280;
+  font-size: 16px;
+}
+
 .error-message {
   color: #dc3545;
   padding: 10px;
@@ -100,6 +107,43 @@
   background-color: #fff5f5;
   border: 1px solid #fad7d7;
   border-radius: 4px;
+}
+
+.no-payment-method {
+  text-align: center;
+  padding: 30px;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.no-payment-method h2 {
+  color: #374151;
+  margin-bottom: 16px;
+}
+
+.no-payment-method p {
+  color: #6b7280;
+  margin-bottom: 12px;
+}
+
+.no-payment-method strong {
+  color: #374151;
+}
+
+.setup-link {
+  display: inline-block;
+  margin-top: 20px;
+  padding: 12px 24px;
+  background-color: #5469d4;
+  color: white;
+  text-decoration: none;
+  border-radius: 6px;
+  transition: background-color 0.2s;
+}
+
+.setup-link:hover {
+  background-color: #4054c7;
 }
 
 .form-row {
