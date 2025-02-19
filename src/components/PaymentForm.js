@@ -3,18 +3,37 @@ import { useStripe } from '@stripe/react-stripe-js';
 import { useNavigate, Link } from 'react-router-dom';
 import './PaymentForm.css';
 
-// Компонент для отображения карты
-function CardDisplay({ cardDetails }) {
+// Компонент для отображения метода оплаты
+function PaymentMethodDisplay({ cardDetails }) {
+  const getBrandName = (brand) => {
+    const brands = {
+      visa: 'Visa',
+      mastercard: 'Mastercard',
+      amex: 'American Express',
+      discover: 'Discover',
+      jcb: 'JCB',
+      diners: 'Diners Club',
+      unionpay: 'UnionPay'
+    };
+    return brands[brand.toLowerCase()] || brand;
+  };
+
   return (
-    <div className="card-display">
-      <div className="card-number">
-        •••• •••• •••• {cardDetails.last4}
-      </div>
-      <div className="card-info">
-        <span className="card-name">{cardDetails.brand}</span>
-        <span className="card-expiry">
-          {cardDetails.exp_month}/{cardDetails.exp_year}
-        </span>
+    <div className="payment-method-display">
+      <div className="payment-method-info">
+        <div className="payment-method-row">
+          <div className="payment-method-brand-icon">
+            {getBrandName(cardDetails.brand)}
+          </div>
+          <div className="payment-method-details">
+            <span className="payment-method-dots">••••</span>
+            <span className="payment-method-last4">{cardDetails.last4}</span>
+            <span className="payment-method-separator">·</span>
+            <span className="payment-method-expiry">
+              {cardDetails.exp_month.toString().padStart(2, '0')}/{cardDetails.exp_year.toString().slice(-2)}
+            </span>
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -171,7 +190,7 @@ function PaymentForm({ onError }) {
       <div className="customer-info">
         Customer: {customerName}
       </div>
-      {cardDetails && <CardDisplay cardDetails={cardDetails} />}
+      {cardDetails && <PaymentMethodDisplay cardDetails={cardDetails} />}
       <form onSubmit={handleSubmit} className="payment-form">
         <div className="form-row">
           <label>

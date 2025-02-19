@@ -77,6 +77,55 @@
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
+.payment-method-display {
+  border: 1px solid #e6e6e6;
+  border-radius: 8px;
+  margin-bottom: 24px;
+  background: white;
+}
+
+.payment-method-info {
+  padding: 16px;
+}
+
+.payment-method-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.payment-method-brand-icon {
+  padding: 6px 12px;
+  border-radius: 4px;
+  background-color: #5469d4;
+  color: white;
+  font-weight: 500;
+  font-size: 14px;
+  white-space: nowrap;
+}
+
+.payment-method-details {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: #1a1f36;
+  font-size: 14px;
+}
+
+.payment-method-dots {
+  color: #8792a2;
+  letter-spacing: 1px;
+}
+
+.payment-method-separator {
+  color: #8792a2;
+  margin: 0 4px;
+}
+
+.payment-method-expiry {
+  color: #697386;
+}
+
 .customer-info {
   background-color: #f8fafc;
   padding: 12px;
