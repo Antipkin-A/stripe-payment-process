@@ -256,6 +256,33 @@ app.get('/api/customer-payment-flow', async (req, res) => {
   }
 });
 
+// Create customer portal session
+app.post('/api/create-portal-session', async (req, res) => {
+  try {
+    const { customerName } = req.body;
+    if (!customerName) {
+      return res.status(400).json({ error: 'Customer name is required' });
+    }
+
+    const customer = await InternalCustomer.findOne({
+      where: { customerName }
+    });
+
+    if (!customer) {
+      return res.status(404).json({ error: 'Customer not found' });
+    }
+
+    const session = await stripe.billingPortal.sessions.create({
+      customer: customer.stripeCustomerId,
+      return_url: `${req.headers.origin}/payment?customerName=${encodeURIComponent(customerName)}`,
+    });
+
+    res.json({ url: session.url });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 if (!isDevelopment) {
   // В production режиме сервим статические файлы
   app.use(express.static(path.join(__dirname, 'dist')));

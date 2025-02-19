@@ -5,23 +5,16 @@ import './PaymentForm.css';
 
 // Компонент для отображения карты
 function CardDisplay({ cardDetails }) {
-  if (!cardDetails) return null;
-
   return (
     <div className="card-display">
-      <div className="card-chip"></div>
-      <div className="card-details">
-        <div className="card-number">
-          **** **** **** {cardDetails.last4}
-        </div>
-        <div className="card-info">
-          <div className="card-name">
-            {cardDetails.brand.toUpperCase()}
-          </div>
-          <div className="card-expiry">
-            {cardDetails.exp_month}/{cardDetails.exp_year.toString().slice(-2)}
-          </div>
-        </div>
+      <div className="card-number">
+        •••• •••• •••• {cardDetails.last4}
+      </div>
+      <div className="card-info">
+        <span className="card-name">{cardDetails.brand}</span>
+        <span className="card-expiry">
+          {cardDetails.exp_month}/{cardDetails.exp_year}
+        </span>
       </div>
     </div>
   );
@@ -35,6 +28,7 @@ function PaymentForm({ onError }) {
   const [amount, setAmount] = useState('');
   const [cardDetails, setCardDetails] = useState(null);
   const [hasPaymentMethod, setHasPaymentMethod] = useState(true);
+  const [stripeCustomerId, setStripeCustomerId] = useState(null);
 
   // Get customerName from URL parameters
   const searchParams = new URLSearchParams(window.location.search);
@@ -63,6 +57,7 @@ function PaymentForm({ onError }) {
 
         if (data.length > 0) {
           setCardDetails(data[0].card);
+          setStripeCustomerId(data[0].customer);
           setHasPaymentMethod(true);
         } else {
           setHasPaymentMethod(false);
@@ -76,6 +71,23 @@ function PaymentForm({ onError }) {
 
     fetchCustomerAndPaymentMethod();
   }, [customerName, onError]);
+
+  const handlePortalRedirect = async () => {
+    try {
+      const response = await fetch('/api/create-portal-session', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ customerName }),
+      });
+
+      const { url } = await response.json();
+      window.location.href = url;
+    } catch (err) {
+      onError('Could not redirect to customer portal');
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -163,25 +175,32 @@ function PaymentForm({ onError }) {
       <form onSubmit={handleSubmit} className="payment-form">
         <div className="form-row">
           <label>
-            Amount (in cents):
+            Amount (EUR):
             <input
               type="number"
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
               required
-              placeholder="Enter amount in cents"
               min="1"
+              step="1"
             />
           </label>
         </div>
-
         <button 
-          type="submit" 
-          disabled={isProcessing || !amount || !cardDetails}
+          type="submit"
+          disabled={!stripe || isProcessing || !amount}
+          className="submit-button"
         >
           {isProcessing ? 'Processing...' : 'Pay Now'}
         </button>
       </form>
+      {stripeCustomerId && (
+        <div className="portal-link-container">
+          <button onClick={handlePortalRedirect} className="portal-link">
+            Manage Payment Methods
+          </button>
+        </div>
+      )}
     </div>
   );
 }

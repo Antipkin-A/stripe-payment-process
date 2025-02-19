@@ -131,6 +131,28 @@
   color: #374151;
 }
 
+.portal-link-container {
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px solid #e5e7eb;
+  text-align: center;
+}
+
+.portal-link {
+  background: none;
+  border: 1px solid #5469d4;
+  color: #5469d4;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.2s;
+}
+
+.portal-link:hover {
+  background: #f5f7ff;
+}
+
 .setup-link {
   display: inline-block;
   margin-top: 20px;
