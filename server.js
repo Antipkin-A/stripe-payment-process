@@ -146,7 +146,8 @@ app.post('/api/detach-payment-methods', async (req, res) => {
 // Create PaymentIntent
 app.post('/api/create-payment-intent', async (req, res) => {
   try {
-    const { amount, customerName } = req.body;
+    const { amount, currency, customerName } = req.body;
+    
     if (!customerName) {
       return res.status(400).json({ error: 'Customer name is required' });
     }
@@ -182,7 +183,7 @@ app.post('/api/create-payment-intent', async (req, res) => {
     // Create the payment intent
     const paymentIntent = await stripe.paymentIntents.create({
       amount,
-      currency: 'eur',
+      currency,
       customer: customer.stripeCustomerId,
       payment_method: paymentMethod,
       off_session: true,

@@ -287,3 +287,40 @@ button:not(:disabled):hover {
 .submit-button {
   width: 100%;
 }
+
+.amount-row {
+  margin-bottom: 20px;
+}
+
+.amount-input-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 300px;
+}
+
+.currency-select {
+  padding: 8px 12px;
+  border: 1px solid #e6e6e6;
+  border-radius: 4px;
+  background-color: white;
+  font-size: 14px;
+  color: #1a1f36;
+  cursor: pointer;
+}
+
+.amount-input {
+  flex: 1;
+  padding: 8px 12px;
+  border: 1px solid #e6e6e6;
+  border-radius: 4px;
+  font-size: 14px;
+  color: #1a1f36;
+}
+
+.amount-input:focus,
+.currency-select:focus {
+  outline: none;
+  border-color: #5469d4;
+  box-shadow: 0 0 0 1px #5469d4;
+}

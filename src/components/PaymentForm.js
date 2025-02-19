@@ -45,9 +45,17 @@ function PaymentForm({ onError }) {
   const [isLoading, setIsLoading] = useState(true);
   const [isProcessing, setIsProcessing] = useState(false);
   const [amount, setAmount] = useState('');
+  const [currency, setCurrency] = useState('eur');
   const [cardDetails, setCardDetails] = useState(null);
   const [hasPaymentMethod, setHasPaymentMethod] = useState(true);
   const [stripeCustomerId, setStripeCustomerId] = useState(null);
+
+  // Поддерживаемые валюты
+  const currencies = [
+    { code: 'usd', symbol: '$', name: 'USD' },
+    { code: 'eur', symbol: '€', name: 'EUR' },
+    { code: 'gbp', symbol: '£', name: 'GBP' }
+  ];
 
   // Get customerName from URL parameters
   const searchParams = new URLSearchParams(window.location.search);
@@ -108,24 +116,25 @@ function PaymentForm({ onError }) {
     }
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    
-    if (!stripe || !customerName || !amount) {
-      return;
-    }
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+    if (!stripe || !amount) return;
 
     setIsProcessing(true);
 
     try {
+      // Конвертируем сумму в центы/пенни для Stripe
+      const amountInSmallestUnit = Math.round(parseFloat(amount) * 100);
+
       const response = await fetch('/api/create-payment-intent', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          customerName,
-          amount: parseInt(amount),
+          amount: amountInSmallestUnit,
+          currency: currency,
+          customerName: customerName,
         }),
       });
 
@@ -192,18 +201,30 @@ function PaymentForm({ onError }) {
       </div>
       {cardDetails && <PaymentMethodDisplay cardDetails={cardDetails} />}
       <form onSubmit={handleSubmit} className="payment-form">
-        <div className="form-row">
-          <label>
-            Amount (EUR):
+        <div className="form-row amount-row">
+          <div className="amount-input-group">
+            <select 
+              value={currency} 
+              onChange={(e) => setCurrency(e.target.value)}
+              className="currency-select"
+            >
+              {currencies.map(curr => (
+                <option key={curr.code} value={curr.code}>
+                  {curr.symbol} {curr.name}
+                </option>
+              ))}
+            </select>
             <input
               type="number"
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
+              placeholder="0.00"
               required
-              min="1"
-              step="1"
+              min="0.01"
+              step="0.01"
+              className="amount-input"
             />
-          </label>
+          </div>
         </div>
         <button 
           type="submit"
