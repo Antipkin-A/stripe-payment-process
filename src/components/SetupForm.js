@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import { useNavigate, useLocation } from 'react-router-dom';
 import './SetupForm.css';
@@ -11,6 +11,27 @@ function SetupForm({ onSetupComplete, onError }) {
   const searchParams = new URLSearchParams(location.search);
   const customerName = searchParams.get('customerName');
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isReplacingCard, setIsReplacingCard] = useState(false);
+
+  useEffect(() => {
+    // Check if customer has existing payment methods
+    const checkExistingPaymentMethods = async () => {
+      if (!customerName) return;
+
+      try {
+        const response = await fetch(`/api/payment-methods?customerName=${encodeURIComponent(customerName)}`);
+        const data = await response.json();
+
+        if (!data.error && data.length > 0) {
+          setIsReplacingCard(true);
+        }
+      } catch (err) {
+        console.error('Error checking payment methods:', err);
+      }
+    };
+
+    checkExistingPaymentMethods();
+  }, [customerName]);
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -32,7 +53,22 @@ function SetupForm({ onSetupComplete, onError }) {
       if (error) {
         onError(error.message);
       } else if (setupIntent.status === "succeeded") {
-        // After successful setup, redirect to payment page
+        // Если у клиента были старые методы оплаты, удаляем их после успешного добавления нового
+        if (isReplacingCard) {
+          try {
+            await fetch('/api/detach-payment-methods', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({ customerName }),
+            });
+          } catch (detachError) {
+            console.error('Error detaching old payment methods:', detachError);
+            // Продолжаем выполнение, так как новый метод уже добавлен
+          }
+        }
+        
         navigate(`/payment?customerName=${encodeURIComponent(customerName)}`);
         onError('');
       }
@@ -51,8 +87,20 @@ function SetupForm({ onSetupComplete, onError }) {
 
   return (
     <div className="setup-container">
-      <h2 className="setup-title">Set Up Payment Method</h2>
-      <div className="customer-info">Setting up payment method for: {customerName}</div>
+      <h2 className="setup-title">
+        {isReplacingCard ? 'Replace Payment Method' : 'Set Up Payment Method'}
+      </h2>
+      <div className="customer-info">
+        {isReplacingCard ? 
+          `Replacing payment method for: ${customerName}` : 
+          `Setting up payment method for: ${customerName}`
+        }
+        {isReplacingCard && (
+          <div className="warning-message">
+            Note: This will replace your existing payment method
+          </div>
+        )}
+      </div>
       <form onSubmit={handleSubmit} className="setup-form">
         <div className="payment-element">
           <PaymentElement
@@ -70,46 +118,18 @@ function SetupForm({ onSetupComplete, onError }) {
                   email: 'Auto',
                   address: {
                     country: 'DE',
-                  },
-                },
-              },
-              fields: {
-                billingDetails: {
-                  name: 'auto',
-                  email: 'auto',
-                  address: {
-                    country: 'auto',
-                  },
-                },
-              },
-              terms: {
-                bancontact: 'auto',
-                card: 'auto',
-                ideal: 'auto',
-                sepaDebit: 'auto',
-                sofort: 'auto',
-              },
-              wallets: {
-                applePay: 'auto',
-                googlePay: 'auto'
+                  }
+                }
               }
             }}
           />
         </div>
-
         <button 
           type="submit" 
-          disabled={!stripe || isProcessing} 
+          disabled={isProcessing || !stripe}
           className="submit-button"
         >
-          {isProcessing ? (
-            <>
-              <span className="loading"></span>
-              Setting up...
-            </>
-          ) : (
-            'Save Card'
-          )}
+          {isProcessing ? 'Processing...' : (isReplacingCard ? 'Replace Payment Method' : 'Save Payment Method')}
         </button>
       </form>
     </div>

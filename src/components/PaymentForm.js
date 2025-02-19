@@ -54,8 +54,8 @@ function PaymentForm({ onError }) {
         const data = await response.json();
 
         if (data.error) {
-          if (data.redirect === '/setup') {
-            navigate(`/setup?customerName=${encodeURIComponent(customerName)}`);
+          if (data.redirect === '/') {
+            navigate(`/?customerName=${encodeURIComponent(customerName)}`);
           } else {
             onError(data.error);
           }
@@ -103,8 +103,8 @@ function PaymentForm({ onError }) {
       const data = await response.json();
 
       if (data.error) {
-        if (data.redirect === '/setup') {
-          navigate(`/setup?customerName=${encodeURIComponent(customerName)}`);
+        if (data.redirect === '/') {
+          navigate(`/?customerName=${encodeURIComponent(customerName)}`);
         } else {
           onError(data.error);
         }

@@ -48,6 +48,16 @@
   font-size: 14px;
 }
 
+.warning-message {
+  margin-top: 10px;
+  padding: 8px;
+  background-color: #fff5f5;
+  border: 1px solid #feb2b2;
+  border-radius: 4px;
+  color: #c53030;
+  font-size: 14px;
+}
+
 .submit-button {
   background-color: #5469d4;
   color: white;

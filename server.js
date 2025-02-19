@@ -85,6 +85,39 @@ app.post('/api/setup-intent', async (req, res) => {
   }
 });
 
+// Detach old payment methods
+app.post('/api/detach-payment-methods', async (req, res) => {
+  try {
+    const { customerName } = req.body;
+    if (!customerName) {
+      return res.status(400).json({ error: 'Customer name is required' });
+    }
+
+    const customer = await InternalCustomer.findOne({
+      where: { customerName }
+    });
+
+    if (!customer) {
+      return res.status(404).json({ error: 'Customer not found' });
+    }
+
+    // Get existing payment methods
+    const paymentMethods = await stripe.paymentMethods.list({
+      customer: customer.stripeCustomerId,
+      type: 'card'
+    });
+
+    // Detach all existing payment methods
+    for (const pm of paymentMethods.data) {
+      await stripe.paymentMethods.detach(pm.id);
+    }
+
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Create PaymentIntent
 app.post('/api/create-payment-intent', async (req, res) => {
   try {
