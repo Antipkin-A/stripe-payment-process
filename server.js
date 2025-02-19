@@ -68,17 +68,42 @@ app.post('/api/setup-intent', async (req, res) => {
       return res.status(400).json({ error: 'Customer name is required' });
     }
 
-    const customer = await getOrCreateCustomer(customerName);
+    // Сначала проверяем, существует ли клиент
+    let customer = await InternalCustomer.findOne({
+      where: { customerName }
+    });
+
+    let stripeCustomerId;
+
+    if (!customer) {
+      // Если клиент не существует, создаем нового в Stripe
+      const stripeCustomer = await stripe.customers.create({
+        name: customerName,
+        metadata: {
+          internalName: customerName
+        }
+      });
+
+      // Создаем запись в базе данных
+      customer = await InternalCustomer.create({
+        customerName,
+        stripeCustomerId: stripeCustomer.id
+      });
+
+      stripeCustomerId = stripeCustomer.id;
+    } else {
+      stripeCustomerId = customer.stripeCustomerId;
+    }
     
     const setupIntent = await stripe.setupIntents.create({
-      customer: customer.stripeCustomerId,
+      customer: stripeCustomerId,
       payment_method_types: ['card', 'sepa_debit', 'ideal', 'bancontact', 'sofort'],
       usage: 'off_session'
     });
 
     res.json({
       clientSecret: setupIntent.client_secret,
-      customerId: customer.stripeCustomerId
+      customerId: stripeCustomerId
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -127,17 +152,20 @@ app.post('/api/create-payment-intent', async (req, res) => {
     }
 
     // Find existing customer
-    const internalCustomer = await InternalCustomer.findOne({
+    const customer = await InternalCustomer.findOne({
       where: { customerName }
     });
 
-    if (!internalCustomer) {
-      return res.status(404).json({ error: 'Customer not found' });
+    if (!customer) {
+      return res.status(404).json({ 
+        error: 'Customer not found',
+        redirect: '/'
+      });
     }
 
     // Get customer's payment methods
     const paymentMethods = await stripe.paymentMethods.list({
-      customer: internalCustomer.stripeCustomerId,
+      customer: customer.stripeCustomerId,
       type: 'card'
     });
 
@@ -148,15 +176,15 @@ app.post('/api/create-payment-intent', async (req, res) => {
       });
     }
 
-    // Use the first payment method as default if no default is set
-    const defaultPaymentMethod = paymentMethods.data[0].id;
+    // Use the first payment method
+    const paymentMethod = paymentMethods.data[0].id;
 
     // Create the payment intent
     const paymentIntent = await stripe.paymentIntents.create({
       amount,
       currency: 'eur',
-      customer: internalCustomer.stripeCustomerId,
-      payment_method: defaultPaymentMethod,
+      customer: customer.stripeCustomerId,
+      payment_method: paymentMethod,
       off_session: true,
       confirm: true,
     });
@@ -179,20 +207,29 @@ app.get('/api/payment-methods', async (req, res) => {
       return res.status(400).json({ error: 'Customer name is required' });
     }
 
-    const internalCustomer = await InternalCustomer.findOne({
+    // Проверяем существует ли клиент
+    const customer = await InternalCustomer.findOne({
       where: { customerName }
     });
 
-    if (!internalCustomer) {
-      return res.status(404).json({ error: 'Customer not found' });
+    if (!customer) {
+      return res.status(404).json({ 
+        error: 'Customer not found',
+        redirect: '/'
+      });
     }
 
+    // Получаем методы оплаты
     const paymentMethods = await stripe.paymentMethods.list({
-      customer: internalCustomer.stripeCustomerId,
-      type: 'card',
+      customer: customer.stripeCustomerId,
+      type: 'card'
     });
 
-    res.json(paymentMethods.data);
+    res.json(paymentMethods.data.map(pm => ({
+      id: pm.id,
+      card: pm.card,
+      customer: customer.stripeCustomerId
+    })));
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -269,7 +306,10 @@ app.post('/api/create-portal-session', async (req, res) => {
     });
 
     if (!customer) {
-      return res.status(404).json({ error: 'Customer not found' });
+      return res.status(404).json({ 
+        error: 'Customer not found',
+        redirect: '/'
+      });
     }
 
     const session = await stripe.billingPortal.sessions.create({
