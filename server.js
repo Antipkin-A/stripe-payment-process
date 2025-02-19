@@ -186,7 +186,7 @@ app.post('/api/create-payment-intent', async (req, res) => {
       auto_advance: false,
       collection_method: 'charge_automatically',
       currency,
-      description: `Payment for ${customerName}`,
+      description: `Wallet deposit for ${customerName}`,
       payment_settings: {
         payment_method_types: ['card'],
         payment_method_options: {
@@ -202,7 +202,7 @@ app.post('/api/create-payment-intent', async (req, res) => {
       customer: customer.stripeCustomerId,
       amount,
       currency,
-      description: `Payment for ${customerName}`,
+      description: `Wallet deposit for ${customerName}`,
       invoice: invoice.id  // Attach item to the invoice
     });
 
