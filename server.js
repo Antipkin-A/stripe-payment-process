@@ -4,6 +4,8 @@ const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const path = require('path');
 const yargs = require('yargs/yargs');
 const { hideBin } = require('yargs/helpers');
+const sequelize = require('./config/database');
+const InternalCustomer = require('./models/InternalCustomer');
 
 // Парсинг аргументов командной строки с помощью yargs
 const argv = yargs(hideBin(process.argv))
@@ -30,38 +32,48 @@ app.get('/config', async (req, res) => {
 });
 
 // Create or retrieve customer
-async function getOrCreateCustomer() {
-  // В реальном приложении здесь будет логика получения customer_id из базы данных
-  // или создания нового customer для текущего пользователя
-  const customers = await stripe.customers.list({
-    limit: 1,
-  });
+async function getOrCreateCustomer(customerName) {
+  try {
+    // Check if customer exists in our database
+    let internalCustomer = await InternalCustomer.findOne({
+      where: { customerName }
+    });
 
-  if (customers.data.length > 0) {
-    return customers.data[0];
+    if (!internalCustomer) {
+      // Create new Stripe customer
+      const stripeCustomer = await stripe.customers.create({
+        name: customerName,
+        description: `Customer for ${customerName}`,
+      });
+
+      // Create internal customer record
+      internalCustomer = await InternalCustomer.create({
+        customerName,
+        stripeCustomerId: stripeCustomer.id
+      });
+    }
+
+    return internalCustomer;
+  } catch (error) {
+    console.error('Error in getOrCreateCustomer:', error);
+    throw error;
   }
-
-  const customer = await stripe.customers.create({
-    description: 'Test Customer',
-  });
-
-  return customer;
 }
 
 // Create SetupIntent
 app.post('/api/create-setup-intent', async (req, res) => {
   try {
-    const customer = await getOrCreateCustomer();
+    const customer = await getOrCreateCustomer('Test Customer');
     
     const setupIntent = await stripe.setupIntents.create({
-      customer: customer.id,
+      customer: customer.stripeCustomerId,
       payment_method_types: ['card', 'sepa_debit', 'ideal', 'bancontact', 'sofort'],
       usage: 'off_session'
     });
 
     res.json({
       clientSecret: setupIntent.client_secret,
-      customerId: customer.id
+      customerId: customer.stripeCustomerId
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -71,15 +83,15 @@ app.post('/api/create-setup-intent', async (req, res) => {
 // Create PaymentIntent
 app.post('/api/create-payment-intent', async (req, res) => {
   try {
-    const { amount, paymentMethod } = req.body;
+    const { amount, paymentMethod, customerName } = req.body;
     
     // Получаем или создаем customer
-    const customer = await getOrCreateCustomer();
+    const customer = await getOrCreateCustomer(customerName);
 
     // Привязываем payment method к customer, если еще не привязан
     try {
       await stripe.paymentMethods.attach(paymentMethod, {
-        customer: customer.id,
+        customer: customer.stripeCustomerId,
       });
     } catch (err) {
       // Игнорируем ошибку, если payment method уже привязан
@@ -89,7 +101,7 @@ app.post('/api/create-payment-intent', async (req, res) => {
     }
 
     // Устанавливаем payment method как default для customer
-    await stripe.customers.update(customer.id, {
+    await stripe.customers.update(customer.stripeCustomerId, {
       invoice_settings: {
         default_payment_method: paymentMethod,
       },
@@ -98,7 +110,7 @@ app.post('/api/create-payment-intent', async (req, res) => {
     const paymentIntent = await stripe.paymentIntents.create({
       amount,
       currency: 'eur',
-      customer: customer.id,
+      customer: customer.stripeCustomerId,
       payment_method: paymentMethod,
       off_session: true,
       confirm: true,
@@ -116,9 +128,9 @@ app.post('/api/create-payment-intent', async (req, res) => {
 // Get customer payment methods
 app.get('/api/payment-methods', async (req, res) => {
   try {
-    const customer = await getOrCreateCustomer();
+    const customer = await getOrCreateCustomer('Test Customer');
     const paymentMethods = await stripe.paymentMethods.list({
-      customer: customer.id,
+      customer: customer.stripeCustomerId,
       type: 'card',
     });
 
@@ -148,6 +160,15 @@ if (!isDevelopment) {
     res.sendFile(path.join(__dirname, 'dist', 'index.html'));
   });
 }
+
+// Initialize database
+sequelize.sync()
+  .then(() => {
+    console.log('Database synchronized successfully');
+  })
+  .catch((err) => {
+    console.error('Failed to sync database:', err);
+  });
 
 const port = process.env.PORT || 4000;
 app.listen(port, () => console.log(`Server running on port ${port}`));
